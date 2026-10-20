@@ -120,7 +120,7 @@ class ArrowService : AccessibilityService() {
                             contentResolver.openOutputStream(uri)?.use {
                                 bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
                             }
-                            say("Saved $name: \( {bmp.width}x \){bmp.height}")
+                            say("Saved " + name + ": " + bmp.width + " x " + bmp.height)
                         } catch (e: Exception) {
                             say("Error: ${e.javaClass.simpleName}")
                         }
