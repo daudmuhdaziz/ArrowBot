@@ -120,8 +120,8 @@ class ArrowService : AccessibilityService() {
 
     private fun swipeTest() {
         val m = resources.displayMetrics
-        val dx = m.widthPixels * 0.6f
-        val dy = m.heightPixels * 0.5f
+                val dx = m.widthPixels * 0.85f
+        val dy = m.heightPixels * 0.72f
         val names = listOf("up", "down", "left", "right")
         val moves = listOf(0f to -dy, 0f to dy, -dx to 0f, dx to 0f)
         moves.forEachIndexed { i, (x, y) ->
