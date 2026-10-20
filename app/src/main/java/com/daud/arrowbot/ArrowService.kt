@@ -29,16 +29,33 @@ class ArrowService : AccessibilityService() {
     override fun onServiceConnected() {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
         p.addView(Button(this).apply {
             text = "Screenshot"
             textSize = 12f
             setOnClickListener { shot() }
         })
         p.addView(Button(this).apply {
-            text = "Scroll test"
+            text = "Up"
             textSize = 12f
-            setOnClickListener { swipeTest() }
+            setOnClickListener { doSwipe(0f, -1f) }
         })
+        p.addView(Button(this).apply {
+            text = "Down"
+            textSize = 12f
+            setOnClickListener { doSwipe(0f, 1f) }
+        })
+        p.addView(Button(this).apply {
+            text = "Left"
+            textSize = 12f
+            setOnClickListener { doSwipe(-1f, 0f) }
+        })
+        p.addView(Button(this).apply {
+            text = "Right"
+            textSize = 12f
+            setOnClickListener { doSwipe(1f, 0f) }
+        })
+
         val st = TextView(this).apply {
             textSize = 11f
             setTextColor(0xFFFFFFFF.toInt())
@@ -48,6 +65,7 @@ class ArrowService : AccessibilityService() {
         }
         p.addView(st)
         status = st
+
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -80,14 +98,20 @@ class ArrowService : AccessibilityService() {
                             val hw = Bitmap.wrapHardwareBuffer(r.hardwareBuffer, r.colorSpace)
                             val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                             r.hardwareBuffer.close()
-                            if (bmp == null) { say("Screenshot was empty"); return }
+                            if (bmp == null) {
+                                say("Screenshot was empty")
+                                return
+                            }
                             val cv = ContentValues().apply {
                                 put(MediaStore.Images.Media.DISPLAY_NAME, "arrow_${System.currentTimeMillis()}.png")
                                 put(MediaStore.Images.Media.MIME_TYPE, "image/png")
                                 put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ArrowBot")
                             }
                             val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv)
-                            if (uri == null) { say("Could not create file"); return }
+                            if (uri == null) {
+                                say("Could not create file")
+                                return
+                            }
                             contentResolver.openOutputStream(uri)?.use {
                                 bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
                             }
@@ -105,32 +129,38 @@ class ArrowService : AccessibilityService() {
         }
     }
 
-    private fun swipe(dx: Float, dy: Float) {
+    // مضبوط سوائپ: تقریباً پوری اسکرین کی دوری، 900ms
+    private fun doSwipe(dirX: Float, dirY: Float) {
         val m = resources.displayMetrics
-        val cx = m.widthPixels / 2f
-        val cy = m.heightPixels / 2f
-        val path = Path().apply {
-            moveTo(cx - dx / 2f, cy - dy / 2f)
-            lineTo(cx + dx / 2f, cy + dy / 2f)
-        }
-        val g = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 700)).build()
-        dispatchGesture(g, null, null)
-    }
+        val w = m.widthPixels.toFloat()
+        val h = m.heightPixels.toFloat()
 
-    private fun swipeTest() {
-        val m = resources.displayMetrics
-                        val dx = m.widthPixels * 0.7f
-        val dy = m.heightPixels * 0.72f
-        val names = listOf("up", "down", "left", "right")
-        val moves = listOf(0f to -dy, 0f to dy, -dx to 0f, dx to 0f)
-        moves.forEachIndexed { i, (x, y) ->
-            handler.postDelayed({
-                say("Scrolling: ${names[i]}")
-                swipe(x, y)
-            }, i * 1500L)
+        // افقی کے لیے 80% چوڑائی، عمودی کے لیے 60% اونچائی
+        val distX = w * 0.80f * dirX
+        val distY = h * 0.60f * dirY
+
+        val cx = w / 2f
+        val cy = h / 2f
+
+        val path = Path().apply {
+            moveTo(cx - distX / 2f, cy - distY / 2f)
+            lineTo(cx + distX / 2f, cy + distY / 2f)
         }
-        handler.postDelayed({ say("Scroll test done") }, 4 * 1500L)
+
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 900))
+            .build()
+
+        val dirName = when {
+            dirY < 0 -> "Up"
+            dirY > 0 -> "Down"
+            dirX < 0 -> "Left"
+            else -> "Right"
+        }
+        say("Scrolling: $dirName")
+        dispatchGesture(gesture, null, null)
+
+        handler.postDelayed({ say("Ready") }, 1100)
     }
 
     fun tap(x: Float, y: Float) {
