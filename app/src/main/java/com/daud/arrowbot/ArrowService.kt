@@ -33,7 +33,7 @@ class ArrowService : AccessibilityService() {
         p.addView(Button(this).apply {
             text = "Screenshot"
             textSize = 12f
-            setOnClickListener { shot() }
+            setOnClickListener { shot("single") }
         })
         p.addView(Button(this).apply {
             text = "Up"
@@ -54,6 +54,11 @@ class ArrowService : AccessibilityService() {
             text = "Right"
             textSize = 12f
             setOnClickListener { doSwipe(1f, 0f) }
+        })
+        p.addView(Button(this).apply {
+            text = "Capture Board"
+            textSize = 12f
+            setOnClickListener { captureBoard() }
         })
 
         val st = TextView(this).apply {
@@ -88,8 +93,8 @@ class ArrowService : AccessibilityService() {
         handler.post { status?.text = t }
     }
 
-    private fun shot() {
-        say("Taking screenshot...")
+    private fun shot(name: String) {
+        say("Taking $name...")
         try {
             takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor,
                 object : TakeScreenshotCallback {
@@ -99,11 +104,11 @@ class ArrowService : AccessibilityService() {
                             val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                             r.hardwareBuffer.close()
                             if (bmp == null) {
-                                say("Screenshot was empty")
+                                say("Screenshot empty")
                                 return
                             }
                             val cv = ContentValues().apply {
-                                put(MediaStore.Images.Media.DISPLAY_NAME, "arrow_${System.currentTimeMillis()}.png")
+                                put(MediaStore.Images.Media.DISPLAY_NAME, "board_$name.png")
                                 put(MediaStore.Images.Media.MIME_TYPE, "image/png")
                                 put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ArrowBot")
                             }
@@ -115,13 +120,13 @@ class ArrowService : AccessibilityService() {
                             contentResolver.openOutputStream(uri)?.use {
                                 bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
                             }
-                            say("Saved: ${bmp.width} x ${bmp.height}")
+                            say("Saved $name: \( {bmp.width}x \){bmp.height}")
                         } catch (e: Exception) {
                             say("Error: ${e.javaClass.simpleName}")
                         }
                     }
                     override fun onFailure(code: Int) {
-                        say("Failed, code: $code")
+                        say("Failed code: $code")
                     }
                 })
         } catch (e: Exception) {
@@ -129,13 +134,11 @@ class ArrowService : AccessibilityService() {
         }
     }
 
-    // مضبوط سوائپ: تقریباً پوری اسکرین کی دوری، 900ms
     private fun doSwipe(dirX: Float, dirY: Float) {
         val m = resources.displayMetrics
         val w = m.widthPixels.toFloat()
         val h = m.heightPixels.toFloat()
 
-        // افقی کے لیے 80% چوڑائی، عمودی کے لیے 60% اونچائی
         val distX = w * 0.80f * dirX
         val distY = h * 0.60f * dirY
 
@@ -159,8 +162,36 @@ class ArrowService : AccessibilityService() {
         }
         say("Scrolling: $dirName")
         dispatchGesture(gesture, null, null)
-
         handler.postDelayed({ say("Ready") }, 1100)
+    }
+
+    private fun captureBoard() {
+        say("Capture Board starting...")
+        // ترتیب: center → left → left → (واپس) → right → right → (واپس) → up → down
+        val steps = listOf(
+            0L to { shot("center") },
+            1800L to { doSwipe(-1f, 0f) },
+            3200L to { shot("left1") },
+            4600L to { doSwipe(-1f, 0f) },
+            6000L to { shot("left2") },
+            7400L to { doSwipe(1f, 0f) },
+            8800L to { doSwipe(1f, 0f) },
+            10200L to { doSwipe(1f, 0f) },
+            11600L to { shot("right1") },
+            13000L to { doSwipe(1f, 0f) },
+            14400L to { shot("right2") },
+            15800L to { doSwipe(-1f, 0f) },
+            17200L to { doSwipe(-1f, 0f) },
+            18600L to { doSwipe(0f, -1f) },
+            20000L to { shot("up") },
+            21400L to { doSwipe(0f, 1f) },
+            22800L to { doSwipe(0f, 1f) },
+            24200L to { shot("down") },
+            25600L to { say("Capture Board done") }
+        )
+        steps.forEach { (delay, action) ->
+            handler.postDelayed(action, delay)
+        }
     }
 
     fun tap(x: Float, y: Float) {
